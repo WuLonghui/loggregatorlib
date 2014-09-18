@@ -5,18 +5,23 @@ import (
 	"github.com/gorilla/websocket"
 	"net/http"
 	"time"
+	"github.com/cloudfoundry/gosteno"
 )
 
 type websocketHandler struct {
 	messages  <-chan []byte
 	keepAlive time.Duration
+	logger *gosteno.Logger
 }
 
-func NewWebsocketHandler(m <-chan []byte, keepAlive time.Duration) *websocketHandler {
-	return &websocketHandler{messages: m, keepAlive: keepAlive}
+func NewWebsocketHandler(m <-chan []byte, keepAlive time.Duration, logger *gosteno.Logger) *websocketHandler {
+	return &websocketHandler{messages: m, keepAlive: keepAlive, logger: logger}
 }
 
 func (h *websocketHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
+	h.logger.Debugf("websocket handler: ServeHTTP entered with request %v", r)
+	defer h.logger.Debugf("websocket handler: ServeHTTP exited")
+
 	ws, err := websocket.Upgrade(rw, r, nil, 0, 0)
 	if err != nil {
 		http.Error(rw, "Not a websocket handshake", http.StatusBadRequest)
