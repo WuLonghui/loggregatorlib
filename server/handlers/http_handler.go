@@ -4,11 +4,13 @@ import (
 	"github.com/cloudfoundry/gosteno"
 	"mime/multipart"
 	"net/http"
+    "sync/atomic"
 )
 
 type httpHandler struct {
 	messages <-chan []byte
 	logger   *gosteno.Logger
+    totalMessagesSent int64
 }
 
 func NewHttpHandler(m <-chan []byte, logger *gosteno.Logger) *httpHandler {
@@ -25,7 +27,12 @@ func (h *httpHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-Type", `multipart/x-protobuf; boundary=`+mp.Boundary())
 
 	for message := range h.messages {
-		partWriter, _ := mp.CreatePart(nil)
+        atomic.AddInt64(&h.totalMessagesSent, 1)
+        partWriter, _ := mp.CreatePart(nil)
 		partWriter.Write(message)
 	}
+}
+
+func (h *httpHandler) GetTotalMessagesSent() int64{
+    return h.totalMessagesSent
 }

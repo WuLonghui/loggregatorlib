@@ -6,12 +6,14 @@ import (
 	"github.com/gorilla/websocket"
 	"net/http"
 	"time"
+    "sync/atomic"
 )
 
 type websocketHandler struct {
 	messages  <-chan []byte
 	keepAlive time.Duration
 	logger    *gosteno.Logger
+    totalMessagesSent int64
 }
 
 func NewWebsocketHandler(m <-chan []byte, keepAlive time.Duration, logger *gosteno.Logger) *websocketHandler {
@@ -62,6 +64,7 @@ func (h *websocketHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 			if !ok {
 				return
 			}
+            atomic.AddInt64(&h.totalMessagesSent, 1)
 			err = ws.WriteMessage(websocket.BinaryMessage, message)
 			if err != nil {
 				h.logger.Debugf("websocket handler: Error writing to websocket: %s", err.Error())
@@ -69,4 +72,8 @@ func (h *websocketHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+}
+
+func (h *websocketHandler) GetTotalMessagesSent() int64{
+    return h.totalMessagesSent
 }

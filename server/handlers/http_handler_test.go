@@ -14,7 +14,7 @@ import (
 
 var _ = Describe("HttpHandler", func() {
 	var boundaryRegexp = regexp.MustCompile("boundary=(.*)")
-	var handler http.Handler
+	var handler handlers.WriterHandler
 	var fakeResponseWriter *httptest.ResponseRecorder
 	var messagesChan chan []byte
 
@@ -23,6 +23,18 @@ var _ = Describe("HttpHandler", func() {
 		messagesChan = make(chan []byte, 10)
 		handler = handlers.NewHttpHandler(messagesChan, loggertesthelper.Logger())
 	})
+
+    It("keeps track of the total number of messages sent", func() {
+        r, _ := http.NewRequest("GET", "ws://loggregator.place/dump/?app=abc-123", nil)
+        for i := 0; i < 5; i++ {
+            messagesChan <- []byte("message")
+        }
+
+        close(messagesChan)
+        handler.ServeHTTP(fakeResponseWriter, r)
+        totalNumberOfMessages := handler.GetTotalMessagesSent()
+        Expect(totalNumberOfMessages).To(Equal(int64(5)))
+    })
 
 	It("grabs recent logs and creates a multi-part HTTP response", func(done Done) {
 		r, _ := http.NewRequest("GET", "ws://loggregator.place/dump/?app=abc-123", nil)

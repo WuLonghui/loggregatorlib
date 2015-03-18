@@ -14,7 +14,7 @@ import (
 )
 
 var _ = Describe("WebsocketHandler", func() {
-	var handler http.Handler
+	var handler handlers.WriterHandler
 	var fakeResponseWriter *httptest.ResponseRecorder
 	var messagesChan chan []byte
 	var testServer *httptest.Server
@@ -34,6 +34,18 @@ var _ = Describe("WebsocketHandler", func() {
 	AfterEach(func() {
 		testServer.Close()
 	})
+
+    It("keeps track of the total number of messages sent", func() {
+        for i := 0; i < 5; i++ {
+            messagesChan <- []byte("message")
+        }
+        _, _, err := websocket.DefaultDialer.Dial(httpToWs(testServer.URL), nil)
+
+        Expect(err).NotTo(HaveOccurred())
+        totalNumberOfMessages := handler.GetTotalMessagesSent()
+        Expect(totalNumberOfMessages).To(Equal(int64(5)))
+        close(messagesChan)
+    })
 
 	It("should complete when the input channel is closed", func() {
 		_, _, err := websocket.DefaultDialer.Dial(httpToWs(testServer.URL), nil)
@@ -55,7 +67,6 @@ var _ = Describe("WebsocketHandler", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(string(msg)).To(Equal("message"))
 		}
-		go ws.ReadMessage()
 		close(messagesChan)
 	})
 
@@ -89,7 +100,6 @@ var _ = Describe("WebsocketHandler", func() {
 		ws, _, err := websocket.DefaultDialer.Dial(httpToWs(testServer.URL), nil)
 		Expect(err).NotTo(HaveOccurred())
 
-		//		ws.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Time{})
 		ws.Close()
 
 		Eventually(handlerDone).Should(BeClosed())
